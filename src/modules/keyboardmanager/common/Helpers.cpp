@@ -6,6 +6,7 @@
 #include <common/utils/process_path.h>
 
 #include "KeyboardManagerConstants.h"
+#include <common/logger/logger.h>
 
 namespace Helpers
 {
@@ -253,11 +254,13 @@ namespace Helpers
             }
             if (shortcutToBeSent.GetCtrlKey() != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetCtrlKey() != shortcutToCompare.GetCtrlKey()) && (keyToBeReleased == NULL || !shortcutToBeSent.CheckCtrlKey(keyToBeReleased)))
             {
+                Logger::trace(L"{} @ {} {} {} {}", __FUNCTIONW__, __LINE__, shortcutToBeSent.GetCtrlKey() != NULL, (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetCtrlKey() != shortcutToCompare.GetCtrlKey()), (keyToBeReleased == NULL || !shortcutToBeSent.CheckCtrlKey(keyToBeReleased)));
                 Helpers::SetKeyEvent(keyEventArray, index, INPUT_KEYBOARD, static_cast<WORD>(shortcutToBeSent.GetCtrlKey()), 0, extraInfoFlag);
                 index++;
             }
             if (shortcutToBeSent.GetAltKey() != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetAltKey() != shortcutToCompare.GetAltKey()) && (keyToBeReleased == NULL || !shortcutToBeSent.CheckAltKey(keyToBeReleased)))
             {
+                Logger::trace(L"{} @ {} {} {}", __FUNCTIONW__, __LINE__, shortcutToBeSent.GetAltKey(), shortcutToBeSent.GetCtrlKey() != NULL);
                 Helpers::SetKeyEvent(keyEventArray, index, INPUT_KEYBOARD, static_cast<WORD>(shortcutToBeSent.GetAltKey()), 0, extraInfoFlag);
                 index++;
             }
@@ -279,11 +282,13 @@ namespace Helpers
             }
             if (shortcutToBeSent.GetAltKey() != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetAltKey() != shortcutToCompare.GetAltKey() || shortcutToBeSent.CheckAltKey(keyToBeReleased)))
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 Helpers::SetKeyEvent(keyEventArray, index, INPUT_KEYBOARD, static_cast<WORD>(shortcutToBeSent.GetAltKey()), KEYEVENTF_KEYUP, extraInfoFlag);
                 index++;
             }
             if (shortcutToBeSent.GetCtrlKey() != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetCtrlKey() != shortcutToCompare.GetCtrlKey() || shortcutToBeSent.CheckCtrlKey(keyToBeReleased)))
             {
+                Logger::trace(L"{} @ {} -- {} -- {}", __FUNCTIONW__, __LINE__, static_cast<WORD>(shortcutToBeSent.GetCtrlKey()), shortcutToBeSent.GetCtrlKey());
                 Helpers::SetKeyEvent(keyEventArray, index, INPUT_KEYBOARD, static_cast<WORD>(shortcutToBeSent.GetCtrlKey()), KEYEVENTF_KEYUP, extraInfoFlag);
                 index++;
             }
