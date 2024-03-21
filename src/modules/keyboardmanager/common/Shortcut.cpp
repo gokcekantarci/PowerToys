@@ -6,6 +6,7 @@
 #include "InputInterface.h"
 #include <string>
 #include <sstream>
+#include <common/logger/logger.h>
 
 // Function to split a wstring based on a delimiter and return a vector of split strings
 std::vector<std::wstring> Shortcut::splitwstring(const std::wstring& input, wchar_t delimiter)
@@ -746,7 +747,7 @@ bool IgnoreKeyCode(DWORD key)
 }
 
 // Function to check if any keys are pressed down except those in the shortcut
-bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInterface& ii) const
+bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInterface& ii, int prevKey) const
 {
     // Iterate through all the virtual key codes - 0xFF is set to key down because of the Num Lock
     for (int keyVal = 1; keyVal < 0xFF; keyVal++)
@@ -759,26 +760,33 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
         // Check state of the key. If the key is pressed down but it is not part of the shortcut then the keyboard state is not clear
         if (ii.GetVirtualKeyState(keyVal))
         {
+            Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, keyVal);
             // If one of the win keys is pressed check if it is part of the shortcut
             if (keyVal == VK_LWIN)
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 if (winKey != ModifierKey::Left && winKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
             else if (keyVal == VK_RWIN)
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 if (winKey != ModifierKey::Right && winKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -787,10 +795,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (ctrlKey != ModifierKey::Left && ctrlKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -798,10 +808,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (ctrlKey != ModifierKey::Right && ctrlKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -809,10 +821,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (ctrlKey == ModifierKey::Disabled)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -821,10 +835,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (altKey != ModifierKey::Left && altKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -832,10 +848,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (altKey != ModifierKey::Right && altKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -843,10 +861,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (altKey == ModifierKey::Disabled)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -855,10 +875,12 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (shiftKey != ModifierKey::Left && shiftKey != ModifierKey::Both)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -870,6 +892,7 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
@@ -877,21 +900,24 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             {
                 if (shiftKey == ModifierKey::Disabled)
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     return false;
                 }
                 else
                 {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                     continue;
                 }
             }
             // If any other key is pressed check if it is the action key
-            else if (keyVal != static_cast<int>(actionKey))
+            else if (keyVal != static_cast<int>(actionKey) && (prevKey != 0 && keyVal != prevKey))
             {
+                Logger::trace(L"{} @ {} {} {} {}", __FUNCTIONW__, __LINE__, keyVal != prevKey, keyVal, prevKey);
                 return false;
             }
         }
     }
-
+    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
     return true;
 }
 
