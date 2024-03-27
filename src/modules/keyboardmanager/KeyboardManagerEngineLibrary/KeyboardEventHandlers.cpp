@@ -233,22 +233,18 @@ namespace KeyboardEventHandlers
             // Iterate through the shortcut remaps and apply whichever has been pressed
             for (auto& itShortcut : state.GetSortedShortcutRemapVector(activatedApp))
             {
-                static DWORD originalKey;
-                Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, originalKey);
+                
                 const auto it = reMap.find(itShortcut);
                 Logger::trace(L"{} @ {} vkcode:{} action:{} ctrl:{} alt:{} down:{}", __FUNCTIONW__, __LINE__, data->lParam->vkCode, it->first.GetActionKey(), it->first.CheckCtrlKey(data->lParam->vkCode), it->first.CheckAltKey(data->lParam->vkCode), (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN));
                 // If a shortcut is currently in the invoked state then skip till the shortcut that is currently invoked
-                Logger::trace(L"{} @ {} {} {}", __FUNCTIONW__, __LINE__, isShortcutInvoked, !it->second.isShortcutInvoked);
-
-                if (it->first.CheckModifiersKeyboardState(ii))
+                Logger::trace(L"{} @ {} {} {} {} {} {}", __FUNCTIONW__, __LINE__, isShortcutInvoked, !it->second.isShortcutInvoked, state.GetPreviousActionKey() != 0, it->first.CheckModifiersKeyboardState(ii), state.GetPreviousActionKey());
+            
+                if (data->lParam->vkCode != it->first.GetActionKey() && isShortcutInvoked && !it->second.isShortcutInvoked)
                 {
                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                }
-
-                if (isShortcutInvoked && !it->second.isShortcutInvoked && !it->first.CheckModifiersKeyboardState(ii))
-                {
                     continue;
                 }
+
                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 // Check if the remap is to a key or a shortcut
                 const bool remapToKey = it->second.targetShortcut.index() == 0;
@@ -270,24 +266,9 @@ namespace KeyboardEventHandlers
                     isAltRightKeyInvoked = true;
                 }
 
-                Logger::trace(L"{} @ {} {} {} {}", __FUNCTIONW__, __LINE__, originalKey, state.GetPreviousActionKey() != 0, state.GetPreviousActionKey() == it->first.GetActionKey());
-                if (!originalKey && state.GetPreviousActionKey() != 0 && state.GetPreviousActionKey() == it->first.GetActionKey() && (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN))
-                {
-                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                    originalKey = data->lParam->vkCode;
-                    data->lParam->vkCode = state.GetPreviousActionKey();
-                    isShortcutInvoked = false;
-                }
-                else if (originalKey && (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN))
-                {
-                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                    it->second.isShortcutInvoked = true;
-                    originalKey = NULL;
-                }
-
                 Logger::trace(L"{} @ {} {} {} {}", __FUNCTIONW__, __LINE__, !it->second.isShortcutInvoked, it->first.CheckModifiersKeyboardState(ii), it->first.IsKeyboardStateClearExceptShortcut(ii, static_cast<int>(state.GetPreviousActionKey())));
                 // If the shortcut has been pressed down
-                if ((!it->second.isShortcutInvoked && (it->first.CheckModifiersKeyboardState(ii))))
+                if (!it->second.isShortcutInvoked && it->first.CheckModifiersKeyboardState(ii))
                 {
                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
 
@@ -617,27 +598,12 @@ namespace KeyboardEventHandlers
                         {
                             Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                             state.SetPreviousActionKey(it->first.GetActionKey());
-
-                            int i = 0;
-                            key_count = dest_size + src_size - 2 + KeyboardManagerConstants::DUMMY_KEY_EVENT_SIZE;
-                            keyEventList = new INPUT[key_count]{};
-                            Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
-                            UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
-                            delete[] keyEventList;
-                        }
-                        else
-                        {
-                            Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, state.GetPreviousActionKey());
-                            data->lParam->vkCode = state.GetPreviousActionKey();
-                            it->second.isShortcutInvoked = false;
-                            state.SetPreviousActionKey(0);
-                            Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, data->lParam->vkCode);
                         }
                         Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                         return 1;
                     }
                 }
-                else if (it->second.isShortcutInvoked)
+                else if (it->second.isShortcutInvoked || isShortcutInvoked)
                 {
                     // The shortcut has already been pressed down at least once, i.e. the shortcut has been invoked
                     // There are 6 cases to be handled if the shortcut has been pressed down
@@ -786,14 +752,39 @@ namespace KeyboardEventHandlers
                     {
                         Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                         // Case 2: If the original shortcut is still held down the keyboard will get a key down message of the action key in the original shortcut and the new shortcut's modifiers will be held down (keys held down send repeated keydown messages)
-                        if (((data->lParam->vkCode == it->first.GetActionKey() && !it->first.HasChord()) || (data->lParam->vkCode == it->first.GetSecondKey() && it->first.HasChord())) && (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN))
+                        if (((data->lParam->vkCode == it->first.GetActionKey() && !it->first.HasChord()) || (data->lParam->vkCode == it->first.GetSecondKey() && it->first.HasChord()) || (state.GetPreviousActionKey() != 0 )) && (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN))
                         {
-                            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                            if (state.GetPreviousActionKey() == 0)
+                            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);                            
+
+                            if (state.GetPreviousActionKey() != 0 && state.GetPreviousActionKey() != data->lParam->vkCode && data->lParam->vkCode != it->first.GetActionKey())
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                                state.SetPreviousActionKey(it->first.GetActionKey());
+                                size_t akey_count = 1;
+                                LPINPUT akeyEventList = nullptr;
+
+                                if (remapToShortcut)
+                                {
+                                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                    akey_count = (dest_size) + (src_size + 1) - (2 * static_cast<size_t>(commonKeys));
+                                    akeyEventList = new INPUT[akey_count]{};
+                                    Helpers::SetKeyEvent(akeyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                }
+                                else if (remapToKey)
+                                {
+                                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                    int i = 0;
+                                    akey_count = dest_size + (src_size - 1) + KeyboardManagerConstants::DUMMY_KEY_EVENT_SIZE;
+                                    akeyEventList = new INPUT[akey_count]{};
+                                    Helpers::SetKeyEvent(akeyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(state.GetPreviousActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                    i++;
+                                    //Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, akeyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                }
+
+                                UINT res = ii.SendVirtualInput(static_cast<UINT>(akey_count), akeyEventList, sizeof(INPUT));
+                                delete[] akeyEventList;
+                                continue;
                             }
+
                             // In case of mapping to disable do not send anything
                             if (remapToKey && std::get<DWORD>(it->second.targetShortcut) == CommonSharedConstants::VK_DISABLED)
                             {
@@ -805,6 +796,7 @@ namespace KeyboardEventHandlers
 
                             size_t key_count = 1;
                             LPINPUT keyEventList = nullptr;
+
                             if (remapToShortcut)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
@@ -813,7 +805,7 @@ namespace KeyboardEventHandlers
                             }
                             else if (remapToKey)
                             {
-                                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, static_cast<WORD>(Helpers::FilterArtificialKeys(std::get<DWORD>(it->second.targetShortcut))));
                                 keyEventList = new INPUT[key_count]{};
                                 Helpers::SetKeyEvent(keyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(Helpers::FilterArtificialKeys(std::get<DWORD>(it->second.targetShortcut))), 0, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                             }
@@ -835,45 +827,26 @@ namespace KeyboardEventHandlers
                                     input.ki.wScan = remapping[idx >> 1];
                                 }
                             }
-
+                            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                             UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
                             delete[] keyEventList;
 
-                            if (originalKey && originalKey != it->first.GetActionKey())
+                            if (state.GetPreviousActionKey() == 0)
                             {
-                                Logger::trace(L"{} @ {} {} {}", __FUNCTIONW__, __LINE__, data->lParam->vkCode, originalKey);
-                                size_t key_count = 1;
-                                LPINPUT keyEventList = nullptr;
-
-                                data->lParam->vkCode = originalKey;
-                                if (remapToShortcut)
-                                {
-                                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                                    keyEventList = new INPUT[key_count]{};
-                                    Helpers::SetKeyEvent(keyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
-                                }
-                                else if (remapToKey)
-                                {
-                                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                                    keyEventList = new INPUT[key_count]{};
-                                    Helpers::SetKeyEvent(keyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(Helpers::FilterArtificialKeys(std::get<DWORD>(it->second.targetShortcut))), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
-                                }
-                                UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
-                                delete[] keyEventList;
-                                continue;
+                                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                state.SetPreviousActionKey(it->first.GetActionKey());
                             }
-                            
-                            
+
                             return 1;
                         }
 
                         // Case 3: If the action key is released from the original shortcut, keep modifiers of the new shortcut until some other key event which doesn't apply to the original shortcut
-                        if (!remapToText && ((!it->first.HasChord() && data->lParam->vkCode == it->first.GetActionKey()) || (it->first.HasChord() && data->lParam->vkCode == it->first.GetSecondKey())) && (data->wParam == WM_KEYUP || data->wParam == WM_SYSKEYUP))
+                        if (!remapToText && ((!it->first.HasChord() && data->lParam->vkCode == it->first.GetActionKey()) || (it->first.HasChord() && data->lParam->vkCode == it->first.GetSecondKey()) || (state.GetPreviousActionKey() != 0)) && (data->wParam == WM_KEYUP || data->wParam == WM_SYSKEYUP))
                         {
                             Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                             size_t key_count = 1;
                             LPINPUT keyEventList = nullptr;
-                            if (state.GetPreviousActionKey() == it->first.GetActionKey())
+                            if (state.GetPreviousActionKey() == data->lParam->vkCode)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 state.SetPreviousActionKey(0);                                
@@ -973,13 +946,6 @@ namespace KeyboardEventHandlers
                             Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                             UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
                             delete[] keyEventList;
-
-                            if (originalKey && originalKey != it->first.GetActionKey())
-                            {
-                                Logger::trace(L"{} @ {} {} {}", __FUNCTIONW__, __LINE__, data->lParam->vkCode, originalKey);
-                                data->lParam->vkCode = originalKey;
-                                continue;
-                            }
                             return 1;
                         }
 
