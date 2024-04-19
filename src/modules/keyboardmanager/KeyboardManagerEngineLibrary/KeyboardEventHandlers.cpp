@@ -237,7 +237,8 @@ namespace KeyboardEventHandlers
                 const auto it = reMap.find(itShortcut);
                 Logger::trace(L"{} @ {} vkcode:{} action:{} ctrl:{} alt:{} down:{}", __FUNCTIONW__, __LINE__, data->lParam->vkCode, it->first.GetActionKey(), it->first.CheckCtrlKey(data->lParam->vkCode), it->first.CheckAltKey(data->lParam->vkCode), (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN));
                 // If a shortcut is currently in the invoked state then skip till the shortcut that is currently invoked
-                Logger::trace(L"{} @ {} {} {} {} {} {}", __FUNCTIONW__, __LINE__, isShortcutInvoked, !it->second.isShortcutInvoked, state.GetPreviousActionKey() != 0, it->first.CheckModifiersKeyboardState(ii), state.GetPreviousActionKey());
+                Logger::trace(L"{} @ {} {} {} {} {}", __FUNCTIONW__, __LINE__, !it->first.CheckModifiersKeyboardState(ii), data->lParam->vkCode != it->first.GetActionKey(), isShortcutInvoked, !it->second.isShortcutInvoked);
+                
             
                 if (data->lParam->vkCode != it->first.GetActionKey() && isShortcutInvoked && !it->second.isShortcutInvoked)
                 {
@@ -245,7 +246,16 @@ namespace KeyboardEventHandlers
                     continue;
                 }
 
-                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                Logger::trace(L" PREV KEY : {} @ {} {}", __FUNCTIONW__, __LINE__, state.GetPreviousModifierKey().size());
+                Logger::trace(L"{} @ {} {} {} {} {}", __FUNCTIONW__, __LINE__, it->first.GetCtrlKey(it->second.modifierKeyInvoked), it->first.GetAltKey(it->second.modifierKeyInvoked), it->first.GetShiftKey(it->second.modifierKeyInvoked), it->first.GetWinKey(it->second.modifierKeyInvoked));
+                if ((data->lParam->vkCode == it->first.GetActionKey()) && !CheckPreviousModifierKey(it, state.GetPreviousModifierKey()))
+                {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                    continue;
+                }
+
+                
+                Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, std::get<DWORD>(it->second.targetShortcut));
                 // Check if the remap is to a key or a shortcut
                 const bool remapToKey = it->second.targetShortcut.index() == 0;
                 const bool remapToShortcut = it->second.targetShortcut.index() == 1;
@@ -334,13 +344,13 @@ namespace KeyboardEventHandlers
                         LPINPUT keyEventList = nullptr;
 
                         // Remember which win key was pressed initially
-                        if (ii.GetVirtualKeyState(VK_RWIN))
+                        if (ii.GetVirtualKeyState(VK_RWIN) || ii.GetVirtualKeyState(VK_RCONTROL) || ii.GetVirtualKeyState(VK_RMENU) || ii.GetVirtualKeyState(VK_RSHIFT))
                         {
-                            it->second.winKeyInvoked = ModifierKey::Right;
+                            it->second.modifierKeyInvoked = ModifierKey::Right;
                         }
-                        else if (ii.GetVirtualKeyState(VK_LWIN))
+                        else if (ii.GetVirtualKeyState(VK_LWIN) || ii.GetVirtualKeyState(VK_LCONTROL) || ii.GetVirtualKeyState(VK_LMENU) || ii.GetVirtualKeyState(VK_LSHIFT))
                         {
-                            it->second.winKeyInvoked = ModifierKey::Left;
+                            it->second.modifierKeyInvoked = ModifierKey::Left;
                         }
 
                         if (isRunProgram)
@@ -418,7 +428,7 @@ namespace KeyboardEventHandlers
                                 key_count = dest_size - commonKeys;
                                 keyEventList = new INPUT[key_count]{};
                                 int i = 0;
-                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
+                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
                                 Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), 0, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                 i++;
                             }
@@ -434,16 +444,16 @@ namespace KeyboardEventHandlers
                                 Helpers::SetDummyKeyEvent(keyEventList, i, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                                 // Release original shortcut state (release in reverse order of shortcut to be accurate)
-                                Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
+                                Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
 
                                 // Set new shortcut key down state
-                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
+                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
                                 Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), 0, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                 i++;
                             }
 
                             // Modifier state reset might be required for this key depending on the shortcut's action and target modifiers - ex: Win+Caps -> Ctrl+A
-                            if (it->first.GetCtrlKey() == NULL && it->first.GetAltKey() == NULL && it->first.GetShiftKey() == NULL)
+                            if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == NULL && it->first.GetAltKey(it->second.modifierKeyInvoked) == NULL && it->first.GetShiftKey(it->second.modifierKeyInvoked) == NULL)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 Shortcut temp = std::get<Shortcut>(it->second.targetShortcut);
@@ -477,7 +487,7 @@ namespace KeyboardEventHandlers
                             // Release original shortcut state (release in reverse order of shortcut to be accurate)
                             
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                                Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                             
                             Logger::trace(L"{} @ {} vkcode:{} action:{} ctrl:{} alt:{} down:{}", __FUNCTIONW__, __LINE__, data->lParam->vkCode, it->first.GetActionKey(), it->first.CheckCtrlKey(data->lParam->vkCode), it->first.CheckAltKey(data->lParam->vkCode), (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN));
                             // Set target key down state
@@ -491,7 +501,7 @@ namespace KeyboardEventHandlers
                             }
 
                             // Modifier state reset might be required for this key depending on the shortcut's action and target modifier - ex: Win+Caps -> Ctrl
-                            if (it->first.GetCtrlKey() == NULL && it->first.GetAltKey() == NULL && it->first.GetShiftKey() == NULL)
+                            if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == NULL && it->first.GetAltKey(it->second.modifierKeyInvoked) == NULL && it->first.GetShiftKey(it->second.modifierKeyInvoked) == NULL)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 ResetIfModifierKeyForLowerLevelKeyHandlers(ii, static_cast<WORD>(Helpers::FilterArtificialKeys(std::get<DWORD>(it->second.targetShortcut))), data->lParam->vkCode);
@@ -513,7 +523,7 @@ namespace KeyboardEventHandlers
                             Helpers::SetDummyKeyEvent(keyEventList, i, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                             // Release original shortcut state (release in reverse order of shortcut to be accurate)
-                            Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                            Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                             for (size_t idx = 0; idx < inputEventCount; ++idx)
                             {
@@ -539,6 +549,7 @@ namespace KeyboardEventHandlers
 
                         UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
                         delete[] keyEventList;
+
 
                         // Send daily telemetry event for Keyboard Manager key activation.
                         if (activatedApp.has_value())
@@ -599,11 +610,14 @@ namespace KeyboardEventHandlers
                             Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                             state.SetPreviousActionKey(it->first.GetActionKey());
                         }
+
+                        SetPreviousModifierKey(it, state);
+
                         Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                         return 1;
                     }
                 }
-                else if (it->second.isShortcutInvoked || isShortcutInvoked)
+                else if ((it->second.isShortcutInvoked || isShortcutInvoked))
                 {
                     // The shortcut has already been pressed down at least once, i.e. the shortcut has been invoked
                     // There are 6 cases to be handled if the shortcut has been pressed down
@@ -619,7 +633,7 @@ namespace KeyboardEventHandlers
                     {
                         Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                         break;
-                    }
+                    }                   
 
                     // Get the common keys between the two shortcuts
                     int commonKeys = (remapToShortcut && !isRunProgram) ? it->first.GetCommonModifiersCount(std::get<Shortcut>(it->second.targetShortcut)) : 0;
@@ -665,12 +679,12 @@ namespace KeyboardEventHandlers
                                 i++;
                             }
 
-                            Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first, data->lParam->vkCode);
+                            Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first, data->lParam->vkCode);
 
                             if (!isAltRightKeyInvoked)
                             {
                                 // Set original shortcut key down state except the action key and the released modifier since the original action key may or may not be held down. If it is held down it will generate it's own key message
-                                Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut), data->lParam->vkCode);
+                                Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut), data->lParam->vkCode);
                             }
                             else
                             {
@@ -716,7 +730,7 @@ namespace KeyboardEventHandlers
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 // Set original shortcut key down state except the action key and the released modifier since the original action key may or may not be held down. If it is held down it will generate it's own key message
-                                Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, Shortcut(), data->lParam->vkCode);
+                                Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, Shortcut(), data->lParam->vkCode);
                             }
                             else
                                 isAltRightKeyInvoked = false;
@@ -727,8 +741,16 @@ namespace KeyboardEventHandlers
 
                         // Reset the remap state
                         it->second.isShortcutInvoked = false;
-                        it->second.winKeyInvoked = ModifierKey::Disabled;
+                        it->second.modifierKeyInvoked = ModifierKey::Disabled;
                         it->second.isOriginalActionKeyPressed = false;
+
+                        if (state.GetPreviousActionKey() != 0)
+                        {
+                            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                            state.SetPreviousActionKey(0);
+                        }
+
+                        state.ResetPreviousModifierKey();
 
                         Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                         // If app specific shortcut has finished invoking, reset the target application
@@ -777,7 +799,7 @@ namespace KeyboardEventHandlers
                                     akeyEventList = new INPUT[akey_count]{};
                                     Helpers::SetKeyEvent(akeyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(state.GetPreviousActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                     i++;
-                                    //Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, akeyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                    //Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, akeyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                 }
 
                                 UINT res = ii.SendVirtualInput(static_cast<UINT>(akey_count), akeyEventList, sizeof(INPUT));
@@ -836,7 +858,7 @@ namespace KeyboardEventHandlers
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 state.SetPreviousActionKey(it->first.GetActionKey());
                             }
-
+                            
                             return 1;
                         }
 
@@ -849,8 +871,16 @@ namespace KeyboardEventHandlers
                             if (state.GetPreviousActionKey() == data->lParam->vkCode)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
-                                state.SetPreviousActionKey(0);                                
+                                state.SetPreviousActionKey(0);
                             }
+                            else if (state.GetPreviousActionKey() != 0 && state.GetPreviousActionKey() != it->first.GetActionKey())
+                            {
+                                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                continue;
+                            }
+
+                            
+
                             if (remapToShortcut && !it->first.HasChord())
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
@@ -872,15 +902,16 @@ namespace KeyboardEventHandlers
                                 i++;
 
                                 // Release new shortcut state (release in reverse order of shortcut to be accurate)
-                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
+                                Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
 
                                 // Set old shortcut key down state
-                                Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
+                                Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
 
                                 // Reset the remap state
                                 it->second.isShortcutInvoked = false;
-                                it->second.winKeyInvoked = ModifierKey::Disabled;
+                                it->second.modifierKeyInvoked = ModifierKey::Disabled;
                                 it->second.isOriginalActionKeyPressed = false;
+                                state.ResetPreviousModifierKey();
 
                                 // If app specific shortcut has finished invoking, reset the target application
                                 if (activatedApp)
@@ -898,7 +929,7 @@ namespace KeyboardEventHandlers
                             }
                             else
                             {
-                                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                                Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, std::get<DWORD>(it->second.targetShortcut));
                                 // Check if the keyboard state is clear apart from the target remap key (by creating a temp Shortcut object with the target key)
                                 bool isKeyboardStateClear = Shortcut(std::vector<int32_t>({ Helpers::FilterArtificialKeys(std::get<DWORD>(it->second.targetShortcut)) })).IsKeyboardStateClearExceptShortcut(ii, static_cast<int>(state.GetPreviousActionKey()));
 
@@ -926,16 +957,16 @@ namespace KeyboardEventHandlers
                                     i++;
 
                                     // Set original shortcut key down state except the action key
-                                    Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                    Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                                     // Send a dummy key event to prevent modifier press+release from being triggered. Example: Win+A->V, press Shift+Win+A and release A, since Win will be pressed here we need to send a dummy event after it
                                     Helpers::SetDummyKeyEvent(keyEventList, i, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                                     // Reset the remap state
                                     it->second.isShortcutInvoked = false;
-                                    it->second.winKeyInvoked = ModifierKey::Disabled;
+                                    it->second.modifierKeyInvoked = ModifierKey::Disabled;
                                     it->second.isOriginalActionKeyPressed = false;
-
+                                    state.ResetPreviousModifierKey();
                                     // If app specific shortcut has finished invoking, reset the target application
                                     if (activatedApp != KeyboardManagerConstants::NoActivatedApp)
                                     {
@@ -956,7 +987,7 @@ namespace KeyboardEventHandlers
                             if (remapToShortcut)
                             {
                                 // Modifier state reset might be required for this key depending on the target shortcut action key - ex: Ctrl+A -> Win+Caps
-                                if (std::get<Shortcut>(it->second.targetShortcut).GetCtrlKey() == NULL && std::get<Shortcut>(it->second.targetShortcut).GetAltKey() == NULL && std::get<Shortcut>(it->second.targetShortcut).GetShiftKey() == NULL)
+                                if (std::get<Shortcut>(it->second.targetShortcut).GetCtrlKey(it->second.modifierKeyInvoked) == NULL && std::get<Shortcut>(it->second.targetShortcut).GetAltKey(it->second.modifierKeyInvoked) == NULL && std::get<Shortcut>(it->second.targetShortcut).GetShiftKey(it->second.modifierKeyInvoked) == NULL)
                                 {
                                     ResetIfModifierKeyForLowerLevelKeyHandlers(ii, data->lParam->vkCode, std::get<Shortcut>(it->second.targetShortcut).GetActionKey());
                                 }
@@ -977,11 +1008,13 @@ namespace KeyboardEventHandlers
                         if (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN)
                         {
                             Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                            state.ResetPreviousModifierKey();
+
                             if (remapToShortcut)
                             {
                                 Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                 // Modifier state reset might be required for this key depending on the target shortcut action key - ex: Ctrl+A -> Win+Caps, Shift is pressed. System should not see Shift and Caps pressed together
-                                if (std::get<Shortcut>(it->second.targetShortcut).GetCtrlKey() == NULL && std::get<Shortcut>(it->second.targetShortcut).GetAltKey() == NULL && std::get<Shortcut>(it->second.targetShortcut).GetShiftKey() == NULL)
+                                if (std::get<Shortcut>(it->second.targetShortcut).GetCtrlKey(it->second.modifierKeyInvoked) == NULL && std::get<Shortcut>(it->second.targetShortcut).GetAltKey(it->second.modifierKeyInvoked) == NULL && std::get<Shortcut>(it->second.targetShortcut).GetShiftKey(it->second.modifierKeyInvoked) == NULL)
                                 {
                                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                     ResetIfModifierKeyForLowerLevelKeyHandlers(ii, data->lParam->vkCode, std::get<Shortcut>(it->second.targetShortcut).GetActionKey());
@@ -1006,7 +1039,7 @@ namespace KeyboardEventHandlers
                                         key_count = static_cast<size_t>(from.Size()) - 1 + 1 + (isLastKeyStillPressed ? 1 : 0);
                                         keyEventList = new INPUT[key_count]{};
                                         int i = 0;
-                                        Helpers::SetModifierKeyEvents(from, it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                        Helpers::SetModifierKeyEvents(from, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                         if (ii.GetVirtualKeyState(static_cast<WORD>(from.actionKey)))
                                         {
                                             // If the action key from the last shortcut is still being pressed, release it.
@@ -1028,14 +1061,14 @@ namespace KeyboardEventHandlers
                                         keyEventList = new INPUT[key_count]{};
 
                                         int i = 0;
-                                        Helpers::SetModifierKeyEvents(from, it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, to);
+                                        Helpers::SetModifierKeyEvents(from, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, to);
                                         if (ii.GetVirtualKeyState(static_cast<WORD>(from.actionKey)))
                                         {
                                             // If the action key from the last shortcut is still being pressed, release it.
                                             Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(from.actionKey), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                             i++;
                                         }
-                                        Helpers::SetModifierKeyEvents(to, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, from);
+                                        Helpers::SetModifierKeyEvents(to, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, from);
                                         Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(to.actionKey), 0, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                         newRemapping.isShortcutInvoked = true;
                                     }
@@ -1043,11 +1076,11 @@ namespace KeyboardEventHandlers
                                     // Remember which win key was pressed initially
                                     if (ii.GetVirtualKeyState(VK_RWIN))
                                     {
-                                        newRemapping.winKeyInvoked = ModifierKey::Right;
+                                        newRemapping.modifierKeyInvoked = ModifierKey::Right;
                                     }
                                     else if (ii.GetVirtualKeyState(VK_LWIN))
                                     {
-                                        newRemapping.winKeyInvoked = ModifierKey::Left;
+                                        newRemapping.modifierKeyInvoked = ModifierKey::Left;
                                     }
                                 }
                                 else
@@ -1073,10 +1106,10 @@ namespace KeyboardEventHandlers
                                         Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
                                         i++;
                                     }
-                                    Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.winKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
+                                    Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
 
                                     // Set old shortcut key down state
-                                    Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
+                                    Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
 
                                     // key down for original shortcut action key with shortcut flag so that we don't invoke the same shortcut remap again
                                     if (isActionKeyPressed)
@@ -1094,7 +1127,7 @@ namespace KeyboardEventHandlers
 
                                 // Reset the remap state
                                 it->second.isShortcutInvoked = false;
-                                it->second.winKeyInvoked = ModifierKey::Disabled;
+                                it->second.modifierKeyInvoked = ModifierKey::Disabled;
                                 it->second.isOriginalActionKeyPressed = false;
 
                                 // If app specific shortcut has finished invoking, reset the target application
@@ -1151,7 +1184,7 @@ namespace KeyboardEventHandlers
 
                                     // Set original shortcut key down state
                                     int i = 0;
-                                    Helpers::SetModifierKeyEvents(it->first, it->second.winKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                                    Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
                                     // Send the original action key only if it is physically pressed. For remappings to keys other than disabled we already check earlier that it is not pressed in this scenario. For remap to disable
                                     if (isRemapToDisable && isOriginalActionKeyPressed)
@@ -1173,7 +1206,7 @@ namespace KeyboardEventHandlers
                                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                                     // Reset the remap state
                                     it->second.isShortcutInvoked = false;
-                                    it->second.winKeyInvoked = ModifierKey::Disabled;
+                                    it->second.modifierKeyInvoked = ModifierKey::Disabled;
                                     it->second.isOriginalActionKeyPressed = false;
 
                                     // If app specific shortcut has finished invoking, reset the target application
@@ -1992,5 +2025,151 @@ namespace KeyboardEventHandlers
         UINT res = ii.SendVirtualInput(eventCount, keyEventList.get(), sizeof(INPUT));
 
         return 1;
+    }
+
+    bool CheckPreviousModifierKey(const ShortcutRemapTable::iterator it, std::vector<DWORD> prevkeys)
+    {
+        if (!prevkeys.empty())
+        {
+            bool isKeyFound = false;
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+            if (it->first.GetShiftKey(it->second.modifierKeyInvoked) != 0)
+            {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                for (auto key : prevkeys)
+                {
+                    if (it->first.GetShiftKey(it->second.modifierKeyInvoked) == key)
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = true;
+                        break;
+                    }
+                    else
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = false;
+                    }
+                }
+
+                if (!isKeyFound)
+                {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                    return false;
+                }
+            }
+
+            if (it->first.GetAltKey(it->second.modifierKeyInvoked) != 0)
+            {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                for (auto key : prevkeys)
+                {
+                    if (it->first.GetAltKey(it->second.modifierKeyInvoked) == key)
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = true;
+                        break;
+                    }
+                    else
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = false;
+                    }
+                }
+
+                if (!isKeyFound)
+                {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                    return false;
+                }
+            }
+            
+            if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) != 0)
+            {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                for (auto key : prevkeys)
+                {
+                    if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == key)
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = true;
+                        break;
+                    }
+                    else
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = false;
+                    }
+                }
+
+                if (!isKeyFound)
+                {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                    return false;
+                }
+            }
+
+            if (it->first.GetWinKey(it->second.modifierKeyInvoked) != 0)
+            {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                for (auto key : prevkeys)
+                {
+                    if (it->first.GetWinKey(it->second.modifierKeyInvoked) == key)
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = true;
+                        break;
+                    }
+                    else
+                    {
+                        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                        isKeyFound = false;
+                    }
+                }
+
+                if (!isKeyFound)
+                {
+                    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                    return false;
+                }
+            }
+
+            if (!isKeyFound)
+            {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+                return false;
+            }
+        }
+
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+        return true;
+    }
+
+    void SetPreviousModifierKey(const ShortcutRemapTable::iterator it, State& state)
+    {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+        if (it->first.GetWinKey(it->second.modifierKeyInvoked) != 0)
+        {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+            state.SetPreviousModifierKey(it->first.GetWinKey(it->second.modifierKeyInvoked));
+        }
+
+        if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) != 0)
+        {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+            state.SetPreviousModifierKey(it->first.GetCtrlKey(it->second.modifierKeyInvoked));
+            Logger::trace(L"{} @ {} {}", __FUNCTIONW__, __LINE__, state.GetPreviousModifierKey().size());
+        }
+
+        if (it->first.GetAltKey(it->second.modifierKeyInvoked) != 0)
+        {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+            state.SetPreviousModifierKey(it->first.GetAltKey(it->second.modifierKeyInvoked));
+        }
+
+        if (it->first.GetShiftKey(it->second.modifierKeyInvoked) != 0)
+        {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+            state.SetPreviousModifierKey(it->first.GetShiftKey(it->second.modifierKeyInvoked));
+        }
     }
 }

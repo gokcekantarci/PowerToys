@@ -85,3 +85,20 @@ DWORD State::GetPreviousActionKey()
 {
     return previousActionKey;
 }
+
+// Sets the activated target application in app-specific shortcut
+void State::SetPreviousModifierKey(const DWORD prevKey)
+{
+    previousModifierKey.emplace_back(prevKey);
+}
+
+// Gets the activated target application in app-specific shortcut
+std::vector<DWORD> State::GetPreviousModifierKey()
+{
+    return previousModifierKey;
+}
+
+void State::ResetPreviousModifierKey()
+{
+    previousModifierKey.clear();
+}

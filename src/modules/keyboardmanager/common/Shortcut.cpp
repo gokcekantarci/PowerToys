@@ -154,39 +154,47 @@ bool Shortcut::IsChordStarted() const
 // Function to return the virtual key code of the win key state expected in the shortcut. Argument is used to decide which win key to return in case of both. If the current shortcut doesn't use both win keys then arg is ignored. Return NULL if it is not a part of the shortcut
 DWORD Shortcut::GetWinKey(const ModifierKey& input) const
 {
+    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
     if (winKey == ModifierKey::Disabled)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         return NULL;
     }
     else if (winKey == ModifierKey::Left)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         return VK_LWIN;
     }
     else if (winKey == ModifierKey::Right)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         return VK_RWIN;
     }
     else
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         // Since VK_WIN does not exist if right windows key is to be sent based on the argument, then return VK_RWIN as the win key (since that will be used to release it).
         if (input == ModifierKey::Right)
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return VK_RWIN;
         }
         else if (input == ModifierKey::Left || input == ModifierKey::Disabled)
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             //return VK_LWIN by default
             return VK_LWIN;
         }
         else
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return CommonSharedConstants::VK_WIN_BOTH;
         }
     }
 }
 
 // Function to return the virtual key code of the ctrl key state expected in the shortcut. Return NULL if it is not a part of the shortcut
-DWORD Shortcut::GetCtrlKey() const
+DWORD Shortcut::GetCtrlKey(const ModifierKey& input) const
 {
     if (ctrlKey == ModifierKey::Disabled)
     {
@@ -202,12 +210,23 @@ DWORD Shortcut::GetCtrlKey() const
     }
     else
     {
-        return VK_CONTROL;
+        if (input == ModifierKey::Right)
+        {
+            return VK_RCONTROL;
+        }
+        else if (input == ModifierKey::Left || input == ModifierKey::Disabled)
+        {
+            return VK_LCONTROL;
+        }
+        else
+        {
+            return VK_CONTROL;
+        }        
     }
 }
 
 // Function to return the virtual key code of the alt key state expected in the shortcut. Return NULL if it is not a part of the shortcut
-DWORD Shortcut::GetAltKey() const
+DWORD Shortcut::GetAltKey(const ModifierKey& input) const
 {
     if (altKey == ModifierKey::Disabled)
     {
@@ -223,12 +242,23 @@ DWORD Shortcut::GetAltKey() const
     }
     else
     {
-        return VK_MENU;
+        if (input == ModifierKey::Right)
+        {
+            return VK_RMENU;
+        }
+        else if (input == ModifierKey::Left || input == ModifierKey::Disabled)
+        {
+            return VK_LMENU;
+        }
+        else
+        {
+            return VK_MENU;
+        } 
     }
 }
 
 // Function to return the virtual key code of the shift key state expected in the shortcut. Return NULL if it is not a part of the shortcut
-DWORD Shortcut::GetShiftKey() const
+DWORD Shortcut::GetShiftKey(const ModifierKey& input) const
 {
     if (shiftKey == ModifierKey::Disabled)
     {
@@ -244,7 +274,18 @@ DWORD Shortcut::GetShiftKey() const
     }
     else
     {
-        return VK_SHIFT;
+        if (input == ModifierKey::Right)
+        {
+            return VK_RSHIFT;
+        }
+        else if (input == ModifierKey::Left || input == ModifierKey::Disabled)
+        {
+            return VK_LSHIFT;
+        }
+        else
+        {
+            return VK_SHIFT;
+        }
     }
 }
 
@@ -376,26 +417,35 @@ bool Shortcut::SetKey(const DWORD input)
     }
     else if (input == VK_LCONTROL)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         if (ctrlKey == ModifierKey::Left)
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         ctrlKey = ModifierKey::Left;
     }
     else if (input == VK_RCONTROL)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         if (ctrlKey == ModifierKey::Right)
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         ctrlKey = ModifierKey::Right;
     }
     else if (input == VK_CONTROL)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         if (ctrlKey == ModifierKey::Both)
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         ctrlKey = ModifierKey::Both;
     }
     else if (input == VK_LMENU)
@@ -494,15 +544,15 @@ winrt::hstring Shortcut::ToHstringVK() const
     }
     if (ctrlKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring(static_cast<unsigned int>(GetCtrlKey())) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetCtrlKey(ModifierKey::Both))) + winrt::to_hstring(L";");
     }
     if (altKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring(static_cast<unsigned int>(GetAltKey())) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetAltKey(ModifierKey::Both))) + winrt::to_hstring(L";");
     }
     if (shiftKey != ModifierKey::Disabled)
     {
-        output = output + winrt::to_hstring(static_cast<unsigned int>(GetShiftKey())) + winrt::to_hstring(L";");
+        output = output + winrt::to_hstring(static_cast<unsigned int>(GetShiftKey(ModifierKey::Both))) + winrt::to_hstring(L";");
     }
     if (actionKey != NULL)
     {
@@ -532,15 +582,15 @@ std::vector<DWORD> Shortcut::GetKeyCodes()
     }
     if (ctrlKey != ModifierKey::Disabled)
     {
-        keys.push_back(GetCtrlKey());
+        keys.push_back(GetCtrlKey(ModifierKey::Both));
     }
     if (altKey != ModifierKey::Disabled)
     {
-        keys.push_back(GetAltKey());
+        keys.push_back(GetAltKey(ModifierKey::Both));
     }
     if (shiftKey != ModifierKey::Disabled)
     {
-        keys.push_back(GetShiftKey());
+        keys.push_back(GetShiftKey(ModifierKey::Both));
     }
     if (actionKey != NULL)
     {
@@ -625,22 +675,28 @@ bool Shortcut::CheckModifiersKeyboardState(KeyboardManagerInput::InputInterface&
     // Check the ctrl key state
     if (ctrlKey == ModifierKey::Left)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         if (!(ii.GetVirtualKeyState(VK_LCONTROL)))
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
     }
     else if (ctrlKey == ModifierKey::Right)
     {
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
         if (!(ii.GetVirtualKeyState(VK_RCONTROL)))
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
     }
     else if (ctrlKey == ModifierKey::Both)
     {
-        if (!(ii.GetVirtualKeyState(VK_CONTROL)))
+        Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
+        if (!(ii.GetVirtualKeyState(VK_CONTROL))    )
         {
+            Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
             return false;
         }
     }
@@ -690,7 +746,7 @@ bool Shortcut::CheckModifiersKeyboardState(KeyboardManagerInput::InputInterface&
             return false;
         }
     }
-
+    Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
     return true;
 }
 
@@ -793,6 +849,7 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             // If one of the ctrl keys is pressed check if it is part of the shortcut
             else if (keyVal == VK_LCONTROL)
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 if (ctrlKey != ModifierKey::Left && ctrlKey != ModifierKey::Both)
                 {
                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
@@ -806,6 +863,7 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             }
             else if (keyVal == VK_RCONTROL)
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 if (ctrlKey != ModifierKey::Right && ctrlKey != ModifierKey::Both)
                 {
                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
@@ -819,6 +877,7 @@ bool Shortcut::IsKeyboardStateClearExceptShortcut(KeyboardManagerInput::InputInt
             }
             else if (keyVal == VK_CONTROL)
             {
+                Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
                 if (ctrlKey == ModifierKey::Disabled)
                 {
                     Logger::trace(L"{} @ {}", __FUNCTIONW__, __LINE__);
