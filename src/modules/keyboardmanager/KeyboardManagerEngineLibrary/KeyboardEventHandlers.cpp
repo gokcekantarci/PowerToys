@@ -740,7 +740,12 @@ namespace KeyboardEventHandlers
                             size_t key_count = 1;
                             LPINPUT keyEventList = nullptr;
 
-                            if (remapToShortcut)
+                            if (remapToShortcut && !it->first.HasChord())
+                            {
+                                keyEventList = new INPUT[key_count]{};
+                                Helpers::SetKeyEvent(keyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                            }
+                            else if (remapToShortcut && it->first.HasChord())
                             {
                                 key_count = (dest_size) + (src_size + 1) - (2 * static_cast<size_t>(commonKeys));
                                 keyEventList = new INPUT[key_count]{};
@@ -748,11 +753,8 @@ namespace KeyboardEventHandlers
                             }
                             else if (remapToKey)
                             {
-                                int i = 0;
-                                key_count = dest_size + (src_size - 1) + KeyboardManagerConstants::DUMMY_KEY_EVENT_SIZE;
                                 keyEventList = new INPUT[key_count]{};
                                 Helpers::SetKeyEvent(keyEventList, 0, INPUT_KEYBOARD, static_cast<WORD>(state.GetPreviousActionKey()), KEYEVENTF_KEYUP, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
-                                i++;
                             }
 
                             UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
