@@ -235,13 +235,20 @@ namespace KeyboardEventHandlers
         {
             const auto it = reMap.find(itShortcut);
             static bool isAltRightKeyInvoked = false;
-
+            //Logger::error("{} @ {} {} up: {} action: {} ctrl:{} shift:{} alt : {} win: {}", __func__, __LINE__, data->lParam->vkCode, (data->wParam == WM_KEYUP || data->wParam == WM_SYSKEYUP), std::get<Shortcut>(it->second.targetShortcut).GetActionKey(),
+            //    std::get<Shortcut>(it->second.targetShortcut).GetCtrlKey(it->second.modifierKeyInvoked),
+            //    std::get<Shortcut>(it->second.targetShortcut).GetShiftKey(it->second.modifierKeyInvoked),
+            //    std::get<Shortcut>(it->second.targetShortcut).GetAltKey(it->second.modifierKeyInvoked),
+            //    std::get<Shortcut>(it->second.targetShortcut).GetWinKey(it->second.modifierKeyInvoked)
+            //);
             if ((Helpers::IsModifierKey(data->lParam->vkCode) && (data->wParam == WM_KEYUP || data->wParam == WM_SYSKEYUP)) && (!isAltRightKeyInvoked || (isAltRightKeyInvoked && data->lParam->vkCode != VK_LCONTROL)))
             {
+                Logger::error("{} @ {}", __func__, __LINE__);
                 state.ResetPreviousModifierKey(data->lParam->vkCode);
-
+                Logger::error("{} @ {}", __func__, __LINE__);
                 if (data->lParam->vkCode == VK_RMENU)
                 {
+                    Logger::error("{} @ {}", __func__, __LINE__);
                     state.ResetPreviousModifierKey(VK_LCONTROL);
                 }
             }
@@ -249,10 +256,11 @@ namespace KeyboardEventHandlers
             {
                 // Set the previous modifier key of the invoked shortcut
                 SetPreviousModifierKey(it, data->lParam->vkCode, state);
-
+                Logger::error("{} @ {}", __func__, __LINE__);
                 // Check if the right Alt key (AltGr) is pressed.
                 if (data->lParam->vkCode == VK_RMENU)
                 {
+                    Logger::error("{} @ {}", __func__, __LINE__);
                     isAltRightKeyInvoked = true;
                 }
             }
@@ -414,7 +422,7 @@ namespace KeyboardEventHandlers
                     else if (remapToShortcut)
                     {
                         // Get the common keys between the two shortcuts if this is not a runProgram shortcut
-
+                        Logger::error("{} @ {}", __func__, __LINE__);
                         int commonKeys = it->first.GetCommonModifiersCount(std::get<Shortcut>(it->second.targetShortcut));
 
                         // If the original shortcut modifiers are a subset of the new shortcut
@@ -440,10 +448,17 @@ namespace KeyboardEventHandlers
 
                             // Release original shortcut state (release in reverse order of shortcut to be accurate)
                             Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, i, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, std::get<Shortcut>(it->second.targetShortcut));
-
+                            for (int i = 0; i < key_count; i++)
+                            {
+                                Logger::error("{} @ {} {}", __func__, __LINE__, keyEventList[i].ki.wVk);
+                            }
                             // Set new shortcut key down state
                             Helpers::SetModifierKeyEvents(std::get<Shortcut>(it->second.targetShortcut), it->second.modifierKeyInvoked, keyEventList, i, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, it->first);
                             Helpers::SetKeyEvent(keyEventList, i, INPUT_KEYBOARD, static_cast<WORD>(std::get<Shortcut>(it->second.targetShortcut).GetActionKey()), 0, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
+                            for (int i = 0; i < key_count; i++)
+                            {
+                                Logger::error("{} @ {} {}", __func__, __LINE__, keyEventList[i].ki.wVk);
+                            }
                             i++;
                         }
 
@@ -529,6 +544,10 @@ namespace KeyboardEventHandlers
 
                     Logger::trace(L"ChordKeyboardHandler:key_count:{}", key_count);
 
+                    for (int i = 0; i < key_count; i++)
+                    {
+                        Logger::error("{} @ {} {}", __func__, __LINE__, keyEventList[i].ki.wVk);
+                    }
                     UINT res = ii.SendVirtualInput(static_cast<UINT>(key_count), keyEventList, sizeof(INPUT));
                     delete[] keyEventList;
 
