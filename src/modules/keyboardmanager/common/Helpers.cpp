@@ -246,7 +246,6 @@ namespace Helpers
         // If key down is to be sent, send in the order Win, Ctrl, Alt, Shift
         if (isKeyDown)
         {
-            Logger::error("{} @ {}", __func__, __LINE__);
             // If shortcutToCompare is non-empty, then the key event is sent only if both shortcut's don't have the same modifier key. If keyToBeReleased is non-NULL, then the key event is sent if either the shortcuts don't have the same modifier or if the shortcutToBeSent's modifier matches the keyToBeReleased
             if (shortcutToBeSent.GetWinKey(modifierKeyInvoked) != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetWinKey(modifierKeyInvoked) != shortcutToCompare.GetWinKey(modifierKeyInvoked)) && (keyToBeReleased == NULL || !shortcutToBeSent.CheckWinKey(keyToBeReleased)))
             {
@@ -275,7 +274,6 @@ namespace Helpers
         // If key up is to be sent, send in the order Shift, Alt, Ctrl, Win
         else
         {
-            Logger::error("{} @ {}", __func__, __LINE__);
             // If shortcutToCompare is non-empty, then the key event is sent only if both shortcut's don't have the same modifier key. If keyToBeReleased is non-NULL, then the key event is sent if either the shortcuts don't have the same modifier or if the shortcutToBeSent's modifier matches the keyToBeReleased
             if (shortcutToBeSent.GetShiftKey(modifierKeyInvoked) != NULL && (shortcutToCompare.IsEmpty() || shortcutToBeSent.GetShiftKey(modifierKeyInvoked) != shortcutToCompare.GetShiftKey(modifierKeyInvoked) || shortcutToBeSent.CheckShiftKey(keyToBeReleased)))
             {
