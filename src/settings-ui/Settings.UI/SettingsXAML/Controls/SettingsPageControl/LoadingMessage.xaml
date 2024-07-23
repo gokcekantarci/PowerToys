@@ -6,13 +6,11 @@
     PrimaryButtonText="Cancel"
     DefaultButton="Primary">
     <StackPanel>
-        <TextBlock Text="Creating bug report, please wait..." 
-                   VerticalAlignment="Center" 
+        <TextBlock Text="Creating bug report, please wait..."
                    HorizontalAlignment="Center"
                    TextAlignment="Center"/>
-        <ProgressBar IsIndeterminate="True" 
-                     VerticalAlignment="Bottom"
+        <ProgressBar IsIndeterminate="True"
                      Height="20"
-                     Margin="10"/>
+                     Margin="8"/>
     </StackPanel>
 </ContentDialog>
