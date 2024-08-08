@@ -5,6 +5,7 @@
 using System;
 using System.Text;
 using System.Windows;
+using Common.UI;
 using ImageResizer.Models;
 using ImageResizer.Properties;
 using ImageResizer.Utilities;
@@ -16,6 +17,8 @@ namespace ImageResizer
 {
     public partial class App : Application, IDisposable
     {
+        private ThemeManager _themeManager;
+
         static App()
         {
             Console.InputEncoding = Encoding.Unicode;
@@ -35,6 +38,8 @@ namespace ImageResizer
                 return;
             }
 
+            _themeManager = new ThemeManager(this);
+
             var batch = ResizeBatch.FromCommandLine(Console.In, e?.Args);
 
             // TODO: Add command-line parameters that can be used in lieu of the input page (issue #14)
@@ -47,6 +52,8 @@ namespace ImageResizer
 
         public void Dispose()
         {
+            _themeManager?.Dispose();
+
             // Do not change this code. Put cleanup code in 'Dispose(bool disposing)' method
             GC.SuppressFinalize(this);
         }

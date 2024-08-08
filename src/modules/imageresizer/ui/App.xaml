@@ -5,11 +5,13 @@
     xmlns:m="clr-namespace:ImageResizer.Models"
     xmlns:sys="clr-namespace:System;assembly=System.Runtime"
     xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
+    xmlns:modern="http://schemas.modernwpf.com/2019"
     xmlns:v="clr-namespace:ImageResizer.Views">
     <Application.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
-                <ui:ThemesDictionary Theme="Dark" />
+                <modern:ThemeResources />
+                <modern:XamlControlsResources />
                 <ui:ControlsDictionary />
             </ResourceDictionary.MergedDictionaries>
 
