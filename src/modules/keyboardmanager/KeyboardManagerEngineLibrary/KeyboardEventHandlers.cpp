@@ -232,11 +232,11 @@ namespace KeyboardEventHandlers
             static bool isAltRightKeyInvoked = false;
             Logger::trace(L"{}@{} vkCokde:{} isUp:{}", __LINE__, __FUNCTIONW__, data->lParam->vkCode, (data->wParam == WM_KEYUP || data->wParam == WM_SYSKEYUP));
             // Remember which modifier key was pressed initially
-            if (data->lParam->vkCode == VK_RWIN || data->lParam->vkCode == VK_RCONTROL || data->lParam->vkCode == VK_RMENU || data->lParam->vkCode == VK_RSHIFT)
+            if (ii.GetVirtualKeyState(VK_RWIN) || ii.GetVirtualKeyState(VK_RCONTROL) || ii.GetVirtualKeyState(VK_RMENU) || ii.GetVirtualKeyState(VK_RSHIFT))
             {
                 it->second.modifierKeyInvoked = ModifierKey::Right;
             }
-            else if (data->lParam->vkCode == VK_LWIN || data->lParam->vkCode == VK_LCONTROL || data->lParam->vkCode == VK_LMENU || data->lParam->vkCode == VK_LSHIFT)
+            else if (ii.GetVirtualKeyState(VK_LWIN) || ii.GetVirtualKeyState(VK_LCONTROL) || ii.GetVirtualKeyState(VK_LMENU) || ii.GetVirtualKeyState(VK_LSHIFT))
             {
                 it->second.modifierKeyInvoked = ModifierKey::Left;
             }
@@ -251,6 +251,7 @@ namespace KeyboardEventHandlers
             }
             else if ((Helpers::IsModifierKey(data->lParam->vkCode) && (data->wParam == WM_KEYDOWN || data->wParam == WM_SYSKEYDOWN)) && (!isAltRightKeyInvoked || (isAltRightKeyInvoked && data->lParam->vkCode != VK_LCONTROL)))
             {
+                Logger::trace(L"{}@{} {}", __LINE__, __FUNCTIONW__, data->lParam->vkCode);
                 // Set the previous modifier key of the invoked shortcut
                 SetPreviousModifierKey(it, data->lParam->vkCode, state);
                 // Check if the right Alt key (AltGr) is pressed.
@@ -259,6 +260,30 @@ namespace KeyboardEventHandlers
                     isAltRightKeyInvoked = true;
                 }
             }
+
+            if ((!Helpers::IsModifierKey(data->lParam->vkCode)))
+            {
+                auto previousModifierKeys = state.GetPreviousModifierKey();
+                for (auto key : previousModifierKeys)
+                {
+                    if (key != NULL)
+                    {
+                        Logger::trace(L"{}@{} {} {}", __LINE__, __FUNCTIONW__, it->first.GetCtrlKey(it->second.modifierKeyInvoked), key);
+                        if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == key)
+                        {
+                            Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
+                            isAltRightKeyInvoked = true;
+                            break;
+                        }
+                        else
+                        {
+                            Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
+                            isAltRightKeyInvoked = false;
+                        }
+                    }
+                }
+            }
+
             Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
             // If a shortcut is currently in the invoked state then skip till the shortcut that is currently invoked and pressed key is not action key
             if (data->lParam->vkCode != it->first.GetActionKey() && isShortcutInvoked && !it->second.isShortcutInvoked)
@@ -458,6 +483,11 @@ namespace KeyboardEventHandlers
                         // Send a dummy key event to prevent modifier press+release from being triggered. Example: Win+A->V, press Win+A, since Win will be released here we need to send a dummy event before it
                         Helpers::SetDummyKeyEvent(keyEventList, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
+                        if (isAltRightKeyInvoked)
+                        {
+                            Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
+                        }
+
                         // Release original shortcut state (release in reverse order of shortcut to be accurate)
                         Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, false, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG);
 
@@ -627,7 +657,7 @@ namespace KeyboardEventHandlers
                             // Set original shortcut key down state except the action key and the released modifier since the original action key may or may not be held down. If it is held down it will generate it's own key message
                             Helpers::SetModifierKeyEvents(it->first, it->second.modifierKeyInvoked, keyEventList, true, KeyboardManagerConstants::KEYBOARDMANAGER_SHORTCUT_FLAG, Shortcut(), data->lParam->vkCode);
                         }
-                        else if (isAltRightKeyInvoked && data->lParam->vkCode == VK_RMENU && state.GetPreviousModifierKey().size() == 0)
+                        else if (isAltRightKeyInvoked && data->lParam->vkCode == VK_RMENU)
                         {
                             Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
                             isAltRightKeyInvoked = false;
