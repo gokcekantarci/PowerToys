@@ -264,21 +264,24 @@ namespace KeyboardEventHandlers
             if ((!Helpers::IsModifierKey(data->lParam->vkCode)))
             {
                 auto previousModifierKeys = state.GetPreviousModifierKey();
-                for (auto key : previousModifierKeys)
+                if (isAltRightKeyInvoked == true)
                 {
-                    if (key != NULL)
+                    for (auto key : previousModifierKeys)
                     {
-                        Logger::trace(L"{}@{} {} {}", __LINE__, __FUNCTIONW__, it->first.GetCtrlKey(it->second.modifierKeyInvoked), key);
-                        if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == key)
+                        if (key != NULL)
                         {
-                            Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
-                            isAltRightKeyInvoked = true;
-                            break;
-                        }
-                        else
-                        {
-                            Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
-                            isAltRightKeyInvoked = false;
+                            Logger::trace(L"{}@{} {} {}", __LINE__, __FUNCTIONW__, it->first.GetCtrlKey(it->second.modifierKeyInvoked), key);
+                            if (it->first.GetCtrlKey(it->second.modifierKeyInvoked) == key)
+                            {
+                                Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
+                                isAltRightKeyInvoked = true;
+                                break;
+                            }
+                            else
+                            {
+                                Logger::trace(L"{}@{}", __LINE__, __FUNCTIONW__);
+                                isAltRightKeyInvoked = false;
+                            }
                         }
                     }
                 }
