@@ -36,6 +36,14 @@ body:
 
 - type: dropdown
   attributes:
+    label: Running as admin
+    description: Are you running PowerToys as Admin?
+    options:
+      - "Yes"
+      - "No"
+
+- type: dropdown
+  attributes:
     label: Area(s) with issue?
     description: What things had an issue? Check all that apply.
     multiple: true
